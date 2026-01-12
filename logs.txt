@@ -1,0 +1,4 @@
+jarvis: Processing /Users/cassiebravo/Downloads/stmts/0075.csv now
+jarvis: Processing /Users/cassiebravo/Downloads/stmts/5029.csv now
+jarvis: Processing /Users/cassiebravo/Downloads/stmts/7150.csv now
+jarvis: Processing /Users/cassiebravo/Downloads/stmts/capitalone-credit-card.csv now

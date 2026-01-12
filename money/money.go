@@ -2,7 +2,6 @@ package money
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -21,6 +20,13 @@ var MoneyCmd = &cobra.Command{
 	Long:  "clean, process, generate financial data for tracking expenses. Note: uses the filename as account name",
 	Args:  cobra.MinimumNArgs(1),
 	Run:   run,
+}
+
+var accountToExternalAccount = map[string]string{
+	"7150": "Discover Checking 7150",
+	"0075": "Discover Savings 7150",
+	"5029": "Discover Savings 5029",
+	"8444": "Capital one credit card 8444",
 }
 
 var numberValueRegex = regexp.MustCompile("[$,]")
@@ -47,20 +53,29 @@ func processDiscoveryAccounts(account string, row []string) (*Transaction, error
 		return nil, err
 	}
 
+	dateParts := strings.Split(row[0], "/")
+	cleanDate := strings.Join([]string{dateParts[2], dateParts[0], dateParts[1]}, "-")
+	externalAcc := accountToExternalAccount[account]
+	tags := " #bank-discover-" + account
+
 	record := &Transaction{
-		Date:        row[0], // change date to yyyy-mm-dd
-		Description: row[1],
+		Date:        cleanDate,
+		Description: strings.ReplaceAll(row[1], "#", "") + tags,
 		Amount:      amount,
 		Balance:     balance,
-		Account:     account,
-		Category:    "TODO",
+		Bank:        "discover",
+		Account:     externalAcc,
+		Category:    "N/A",
 	}
+
+	category := GetCategory("", *record)
+	record.Category = category
 
 	return record, nil
 
 }
 
-func processCapitalOneAccounts(account string, row []string) (*Transaction, error) {
+func processCapitalOneAccounts(row []string) (*Transaction, error) {
 
 	var amountStr string
 
@@ -76,15 +91,19 @@ func processCapitalOneAccounts(account string, row []string) (*Transaction, erro
 		return nil, err
 	}
 
+	externalAcc := accountToExternalAccount["8444"]
+	tags := " #bank-capitalone-8444"
 	record := &Transaction{
 		Date:        row[0],
-		Description: row[3],
+		Description: strings.ReplaceAll(row[3], "#", "") + tags,
 		Amount:      amount,
 		Balance:     decimal.NewFromFloat32(0.0),
-		Account:     account,
-		Category:    row[4],
-		Tags:        []string{fmt.Sprintf("creditcard: %s", row[2])},
+		Bank:        "capitalone",
+		Account:     externalAcc,
+		Category:    "N/A",
 	}
+	category := GetCategory(row[4], *record)
+	record.Category = category
 
 	return record, nil
 
@@ -125,7 +144,7 @@ func run(cmd *cobra.Command, args []string) {
 		}
 
 		writer := csv.NewWriter(outFile)
-		err = writer.Write([]string{"Account", "Category", "Date", "Description", "Amount", "Balance"})
+		err = writer.Write([]string{"Account", "Category", "Date", "Amount", "Description"})
 		if err != nil {
 			log.Fatalf("Failed to write header to %s: %s", output, err)
 		}
@@ -155,31 +174,31 @@ func run(cmd *cobra.Command, args []string) {
 					break
 				}
 
-				// uses the filename as account name
-				account := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
-
 				var record *Transaction
 
-				if strings.Contains(account, "capitalone") {
-					record, err = processCapitalOneAccounts(account, row)
+				if strings.Contains(filename, "capitalone") {
+					record, err = processCapitalOneAccounts(row)
 				} else {
+					// uses the filename as account name
+					account := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
 					record, err = processDiscoveryAccounts(account, row)
 				}
 
 				if err != nil {
 					log.Fatalf("Failed to create record: %s", err)
 				}
-				log.Printf("%+v\n", record)
+				// log.Printf("%+v\n", record)
 
 				err = writer.Write([]string{
 					record.Account, record.Category, record.Date,
-					record.Description, record.Amount.String(), record.Balance.String(),
+					record.Amount.String(), record.Description,
 				})
 				if err != nil {
 					log.Fatalf("error writing record %+v to csv: %s", record, err)
 				}
-
 			}
 		}
+
+		writer.Flush()
 	}
 }
