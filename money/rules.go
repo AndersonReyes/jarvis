@@ -10,40 +10,56 @@ import (
 //	".*verizon.*",
 //}
 
-var billsRegex = regexp.MustCompile(".*(verizon|cloudflare|progressive|bank of america|head over heels|clubpilate|pets|youtubepremium|netflix|pseg|bsi financial).*")
-var incomeRegex = regexp.MustCompile(".*(payroll ach from Spotify|ach deposit|interest paid|cashback).*")
-var groceriesRegex = regexp.MustCompile(".*(walmart|bjs|walgreens|target).*")
+var billsRegex = regexp.MustCompile("(verizon|cloudflare|progressive|bank of america|head over heels|clubpilate|pets best ins|youtubepremium|netflix|pseg|bsi financial|cko|octopus music school)")
+var incomeRegex = regexp.MustCompile("(payroll ach from spotify|ach deposit|interest paid|cashback)")
+var groceriesRegex = regexp.MustCompile("(walmart|bjs|walgreens|target|wal-mart)")
+var creditCardPaymentRegex = regexp.MustCompile("(capital one online pmt)")
+var transferCategoryRegex = regexp.MustCompile("(transfer to|transfer from)")
 
 // items that dont get categorized by upstream banks
-var uncategorizedRegex = regexp.MustCompile(".*(zelle).*")
+var uncategorizedRegex = regexp.MustCompile("(zelle)")
 
-func GetCategory(bankCategory string, transaction Transaction) Category {
+func SetCategory(bankCategory string, transaction *Transaction) {
 
+	var cat = bankCategory
 	switch bankCategory {
 	case "Gas/Automotive":
-		return CategoryCar
+		cat = CategoryCar
 	case "Other Services":
-		return CategoryOther
+		cat = CategoryOther
 	case "Lodging":
-		return CategoryVactation
+		cat = CategoryVactation
 	default:
 		desc := strings.ToLower(transaction.Description)
 		if billsRegex.MatchString(desc) {
-			return CategoryBills
+			cat = CategoryBills
 		} else if incomeRegex.MatchString(desc) {
-			return CategoryIncome
+			cat = CategoryIncome
 		} else if groceriesRegex.MatchString(desc) {
-			return CategoryGroceries
+			cat = CategoryGroceries
 		} else if uncategorizedRegex.MatchString(desc) {
-			return CategoryOther
+			cat = CategoryOther
+		} else if creditCardPaymentRegex.MatchString(desc) {
+			cat = CategoryCreditCardPayment
+		} else if transferCategoryRegex.MatchString(desc) {
+			cat = CategoryTransfer
 		}
-		return bankCategory
-
 	}
+
+	transaction.Category = cat
 }
 
-func GetPayee(account string, transaction Transaction) string {
+var skipPayeeRegex = regexp.MustCompile("(transfer to|transfer from|deposit from|interest paid)")
+
+func SetPayee(transaction *Transaction) {
 	desc := strings.ToLower(transaction.Description)
+
+	// only set the payee for bills so we can auto track with schedules
+	if skipPayeeRegex.MatchString(desc) || transaction.Category != CategoryBills {
+		return
+	}
+
+	var payee = ""
 
 	var regexes = []regexp.Regexp{}
 	regexes = append(regexes, *billsRegex)
@@ -56,11 +72,9 @@ func GetPayee(account string, transaction Transaction) string {
 		var match = r.FindStringIndex(desc)
 
 		if match != nil {
-			// get 50 more chars past the end as payee
-			end := match[1] + 50
-			return desc[match[0]:end]
+			payee = desc[match[0]:match[1]]
 		}
 	}
 
-	return "(no Name)"
+	transaction.Payee = payee
 }

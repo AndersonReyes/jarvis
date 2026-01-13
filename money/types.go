@@ -40,12 +40,14 @@ type Transaction struct {
 type Category = string
 
 const (
-	CategoryHouse         = "House"
-	CategoryCar           = "Car"
-	CategoryBills         = "Bills"
-	CategoryIncome        = "Income"
-	CategoryGroceries     = "Groceries"
-	CategoryEntertainment = "Entertainment"
-	CategoryVactation     = "Vacation"
-	CategoryOther         = "Other"
+	CategoryHouse             = "House"
+	CategoryCar               = "Car"
+	CategoryBills             = "Bills"
+	CategoryIncome            = "Income"
+	CategoryGroceries         = "Groceries"
+	CategoryEntertainment     = "Entertainment"
+	CategoryVactation         = "Vacation"
+	CategoryOther             = "Other"
+	CategoryCreditCardPayment = "Payment/Credit"
+	CategoryTransfer          = "Transfer"
 )

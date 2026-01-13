@@ -68,8 +68,8 @@ func processDiscoveryAccounts(account string, row []string) (*Transaction, error
 		Category:    "N/A",
 	}
 
-	category := GetCategory("", *record)
-	record.Category = category
+	SetCategory("", record)
+	SetPayee(record)
 
 	return record, nil
 
@@ -102,8 +102,8 @@ func processCapitalOneAccounts(row []string) (*Transaction, error) {
 		Account:     externalAcc,
 		Category:    "N/A",
 	}
-	category := GetCategory(row[4], *record)
-	record.Category = category
+	SetCategory(row[4], record)
+	SetPayee(record)
 
 	return record, nil
 
@@ -144,7 +144,7 @@ func run(cmd *cobra.Command, args []string) {
 		}
 
 		writer := csv.NewWriter(outFile)
-		err = writer.Write([]string{"Account", "Category", "Date", "Amount", "Description"})
+		err = writer.Write([]string{"Date", "Account", "Category", "Amount", "Description", "Payee"})
 		if err != nil {
 			log.Fatalf("Failed to write header to %s: %s", output, err)
 		}
@@ -190,8 +190,8 @@ func run(cmd *cobra.Command, args []string) {
 				// log.Printf("%+v\n", record)
 
 				err = writer.Write([]string{
-					record.Account, record.Category, record.Date,
-					record.Amount.String(), record.Description,
+					record.Date, record.Account, record.Category,
+					record.Amount.String(), record.Description, record.Payee,
 				})
 				if err != nil {
 					log.Fatalf("error writing record %+v to csv: %s", record, err)
