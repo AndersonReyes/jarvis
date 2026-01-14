@@ -1,6 +1,7 @@
 package money
 
 import (
+	"log"
 	"regexp"
 	"strings"
 )
@@ -17,7 +18,7 @@ var creditCardPaymentRegex = regexp.MustCompile("(capital one online pmt)")
 var transferCategoryRegex = regexp.MustCompile("(transfer to|transfer from)")
 
 // items that dont get categorized by upstream banks
-var uncategorizedRegex = regexp.MustCompile("(zelle)")
+var otherCategoryRegex = regexp.MustCompile("(zelle)")
 
 func SetCategory(bankCategory string, transaction *Transaction) {
 
@@ -37,26 +38,34 @@ func SetCategory(bankCategory string, transaction *Transaction) {
 			cat = CategoryIncome
 		} else if groceriesRegex.MatchString(desc) {
 			cat = CategoryGroceries
-		} else if uncategorizedRegex.MatchString(desc) {
+		} else if otherCategoryRegex.MatchString(desc) {
 			cat = CategoryOther
 		} else if creditCardPaymentRegex.MatchString(desc) {
 			cat = CategoryCreditCardPayment
 		} else if transferCategoryRegex.MatchString(desc) {
 			cat = CategoryTransfer
+		} else if cat == "" {
+			cat = CategoryUnknown
 		}
 	}
 
 	transaction.Category = cat
 }
 
-var skipPayeeRegex = regexp.MustCompile("(transfer to|transfer from|deposit from|interest paid)")
+var skipPayeeRegex = regexp.MustCompile("(transfer from|deposit from|interest paid)")
 
-func SetPayee(transaction *Transaction) {
+func SetPayeeAndDestinationAccount(transaction *Transaction) {
 	desc := strings.ToLower(transaction.Description)
 
 	// only set the payee for bills so we can auto track with schedules
-	if skipPayeeRegex.MatchString(desc) || transaction.Category != CategoryBills {
+	if skipPayeeRegex.MatchString(desc) {
 		return
+	}
+
+	if transaction.Category == CategoryTransfer {
+		externalAcc := AccountIdToFullName[desc[len(desc)-4:]]
+		transaction.DestinationAccount = externalAcc
+		log.Printf("Processed transfer %+v", transaction)
 	}
 
 	var payee = ""
@@ -65,7 +74,7 @@ func SetPayee(transaction *Transaction) {
 	regexes = append(regexes, *billsRegex)
 	regexes = append(regexes, *incomeRegex)
 	regexes = append(regexes, *groceriesRegex)
-	regexes = append(regexes, *uncategorizedRegex)
+	regexes = append(regexes, *otherCategoryRegex)
 
 	for _, r := range regexes {
 

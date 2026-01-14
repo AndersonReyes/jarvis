@@ -22,13 +22,6 @@ var MoneyCmd = &cobra.Command{
 	Run:   run,
 }
 
-var accountToExternalAccount = map[string]string{
-	"7150": "Discover Checking 7150",
-	"0075": "Discover Savings 7150",
-	"5029": "Discover Savings 5029",
-	"8444": "Capital one credit card 8444",
-}
-
 var numberValueRegex = regexp.MustCompile("[$,]")
 
 func processDiscoveryAccounts(account string, row []string) (*Transaction, error) {
@@ -55,21 +48,22 @@ func processDiscoveryAccounts(account string, row []string) (*Transaction, error
 
 	dateParts := strings.Split(row[0], "/")
 	cleanDate := strings.Join([]string{dateParts[2], dateParts[0], dateParts[1]}, "-")
-	externalAcc := accountToExternalAccount[account]
-	tags := " #bank-discover-" + account
+	externalAcc := AccountIdToFullName[account]
+	tags := []string{" #bank-discover-" + account}
 
 	record := &Transaction{
-		Date:        cleanDate,
-		Description: strings.ReplaceAll(row[1], "#", "") + tags,
-		Amount:      amount,
-		Balance:     balance,
-		Bank:        "discover",
-		Account:     externalAcc,
-		Category:    "N/A",
+		Date:          cleanDate,
+		Description:   row[1],
+		Amount:        amount,
+		Balance:       balance,
+		Bank:          "discover",
+		SourceAccount: externalAcc,
+		Tags:          tags,
+		Category:      CategoryUnknown,
 	}
 
 	SetCategory("", record)
-	SetPayee(record)
+	SetPayeeAndDestinationAccount(record)
 
 	return record, nil
 
@@ -91,19 +85,20 @@ func processCapitalOneAccounts(row []string) (*Transaction, error) {
 		return nil, err
 	}
 
-	externalAcc := accountToExternalAccount["8444"]
-	tags := " #bank-capitalone-8444"
+	externalAcc := AccountIdToFullName["8444"]
+	tags := []string{" #bank-capitalone-8444"}
 	record := &Transaction{
-		Date:        row[0],
-		Description: strings.ReplaceAll(row[3], "#", "") + tags,
-		Amount:      amount,
-		Balance:     decimal.NewFromFloat32(0.0),
-		Bank:        "capitalone",
-		Account:     externalAcc,
-		Category:    "N/A",
+		Date:          row[0],
+		Description:   row[3],
+		Amount:        amount,
+		Tags:          tags,
+		Balance:       decimal.NewFromFloat32(0.0),
+		Bank:          "capitalone",
+		SourceAccount: externalAcc,
+		Category:      "N/A",
 	}
 	SetCategory(row[4], record)
-	SetPayee(record)
+	SetPayeeAndDestinationAccount(record)
 
 	return record, nil
 
@@ -144,7 +139,7 @@ func run(cmd *cobra.Command, args []string) {
 		}
 
 		writer := csv.NewWriter(outFile)
-		err = writer.Write([]string{"Date", "Account", "Category", "Amount", "Description", "Payee"})
+		err = writer.Write([]string{"Date", "SourceAccount", "Category", "Amount", "Description", "Payee", "DestinationAccount"})
 		if err != nil {
 			log.Fatalf("Failed to write header to %s: %s", output, err)
 		}
@@ -169,19 +164,21 @@ func run(cmd *cobra.Command, args []string) {
 			log.Printf("Processing %s now\n", filename)
 			for {
 
-				row, err := reader.Read()
+				line, err := reader.Read()
 				if err == io.EOF {
 					break
 				}
 
+				log.Printf("Processing line %s", line)
+
 				var record *Transaction
 
 				if strings.Contains(filename, "capitalone") {
-					record, err = processCapitalOneAccounts(row)
+					record, err = processCapitalOneAccounts(line)
 				} else {
 					// uses the filename as account name
 					account := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
-					record, err = processDiscoveryAccounts(account, row)
+					record, err = processDiscoveryAccounts(account, line)
 				}
 
 				if err != nil {
@@ -190,8 +187,9 @@ func run(cmd *cobra.Command, args []string) {
 				// log.Printf("%+v\n", record)
 
 				err = writer.Write([]string{
-					record.Date, record.Account, record.Category,
+					record.Date, record.SourceAccount, record.Category,
 					record.Amount.String(), record.Description, record.Payee,
+					record.DestinationAccount,
 				})
 				if err != nil {
 					log.Fatalf("error writing record %+v to csv: %s", record, err)
