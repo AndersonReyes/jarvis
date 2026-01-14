@@ -107,6 +107,7 @@ func processCapitalOneAccounts(row []string) (*Transaction, error) {
 const output = "transactions.csv"
 
 func run(cmd *cobra.Command, args []string) {
+	log.SetPrefix("money")
 	for _, dir := range args {
 		var files []string
 
@@ -139,7 +140,7 @@ func run(cmd *cobra.Command, args []string) {
 		}
 
 		writer := csv.NewWriter(outFile)
-		err = writer.Write([]string{"Date", "SourceAccount", "Category", "Amount", "Description", "Payee", "DestinationAccount"})
+		err = writer.Write(TransactionColumns[:])
 		if err != nil {
 			log.Fatalf("Failed to write header to %s: %s", output, err)
 		}

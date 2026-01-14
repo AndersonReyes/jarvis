@@ -1,6 +1,8 @@
 package money
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+)
 
 var AccountIdToFullName = map[string]string{
 	"7150": "Discover Checking 7150",
@@ -20,6 +22,30 @@ type Transaction struct {
 	Tags               []string
 	Category           Category
 	Payee              string
+}
+
+var TransactionColumns = [7]string{"Date", "SourceAccount", "Category", "Amount",
+	"Description", "Payee", "DestinationAccount"}
+
+func TransactionColumnsToIndex() map[string]int {
+	m := make(map[string]int)
+	for idx, col := range TransactionColumns {
+		m[col] = idx
+	}
+
+	return m
+}
+
+func NewTransactionFromValues(colValues []string) Transaction {
+	mapping := TransactionColumnsToIndex()
+	return Transaction{
+		Date:               colValues[mapping["Date"]],
+		Description:        colValues[mapping["Description"]],
+		Amount:             decimal.RequireFromString(colValues[mapping["Amount"]]),
+		SourceAccount:      colValues[mapping["SourceAccount"]],
+		DestinationAccount: colValues[mapping["DestinationAccount"]],
+		Category:           colValues[mapping["Category"]],
+	}
 }
 
 //type BillId = int
