@@ -3,11 +3,11 @@ package money
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 )
 
 const fireflyUrl = "http://192.168.1.212:8082/api"
@@ -35,6 +35,11 @@ type FireFlyTransactionRequest struct {
 	ApplyRules           bool                 `json:"appy_rules"`
 	ErrorIfDuplicateHash bool                 `json:"error_if_duplicate_hash"`
 	Transactions         []FireFlyTransaction `json:"transactions"`
+}
+
+type FireFlyTransactioaErrorResponse struct {
+	Message string `json:"message"`
+	Errors  string `json:"errors"`
 }
 
 func (c fireflyClient) AddTransaction(r FireFlyTransactionRequest) error {
@@ -66,23 +71,27 @@ func (c fireflyClient) AddTransaction(r FireFlyTransactionRequest) error {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 
-	var isDup = false
-	if resp.StatusCode == 422 || strings.Contains(string(body), "duplicate") {
-		isDup = true
-	}
+	// var isDup = false
+	// if resp.StatusCode == 422 || strings.Contains(string(body), "duplicate") {
+	// 	isDup = true
+	// }
 	var buf bytes.Buffer
 	err = json.Indent(&buf, body, "", "  ")
 
-	if (resp.StatusCode != 200 && !isDup) || err != nil {
+	if resp.StatusCode != 200 || err != nil {
+		log.Printf("failed requesa: %+v\n", r)
 		log.Printf("Error creating transaction with response Body:[%d] %s. Error: %s\n", resp.StatusCode, &buf, err)
-		return err
+		return errors.New("AddTransaction failed")
 	}
 
-	if isDup {
-		log.Printf("transaction exists. Skipping: %+v\n", r)
-	} else {
-		log.Printf("created transaction: %+v\n", r)
-	}
+	// log.Printf("API Response [%d]:\n%s\n", resp.StatusCode, &buf)
+	// for _, t := range r.Transactions {
+	// 	if isDup && r.ErrorIfDuplicateHash {
+	// 		log.Printf("transaction exists. Skipping: %s\n", t)
+	// 	} else {
+	// 		log.Printf("created transaction: %s\n", t)
+	// 	}
+	// }
 
 	return nil
 }

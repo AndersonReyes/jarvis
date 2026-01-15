@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
@@ -20,6 +21,7 @@ var FireflyCmd = &cobra.Command{
 
 var (
 	importTransactionsFlag bool
+	allowDuplicates        bool
 )
 
 var client = NewFireflyClient()
@@ -27,6 +29,8 @@ var client = NewFireflyClient()
 func init() {
 	FireflyCmd.Flags().BoolVarP(&importTransactionsFlag, "transactions", "t",
 		false, "import transactions from csv")
+	FireflyCmd.Flags().BoolVarP(&allowDuplicates, "duplicates", "d",
+		false, "allow duplicates on upload")
 }
 
 func fireflyRun(cmd *cobra.Command, args []string) {
@@ -41,7 +45,9 @@ func fireflyRun(cmd *cobra.Command, args []string) {
 }
 
 func getType(t Transaction) string {
-	if t.Amount.LessThan(decimal.NewFromFloat(0.0)) {
+	if t.Category == CategoryTransfer {
+		return "transfer"
+	} else if t.Amount.LessThan(decimal.NewFromFloat(0.0)) {
 		return "withdrawal"
 	}
 
@@ -72,10 +78,16 @@ func importTransactions(args []string) {
 		}
 
 		t := NewTransactionFromValues(line)
+
+		if strings.Contains(t.Description, "Transfer From") {
+			log.Printf("skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts")
+			continue
+		}
+
 		ft := FireFlyTransaction{
 			TransactionType: getType(t),
 			Date:            t.Date,
-			Amount:          t.Amount.String(),
+			Amount:          t.Amount.Abs().String(),
 			Category:        t.Category,
 			DestinationName: t.DestinationAccount,
 			SourceName:      t.SourceAccount,
@@ -83,17 +95,15 @@ func importTransactions(args []string) {
 			Description:     t.Description,
 		}
 
-		if ft.DestinationName == "" {
-			ft.DestinationName = "noname"
-		}
-
-		if ft.SourceName == "" {
-			ft.SourceName = "noname"
+		// deposits require the dest account to be the source account for firefly
+		if ft.TransactionType == "deposit" {
+			ft.DestinationName = t.SourceAccount
+			ft.SourceName = ""
 		}
 
 		payload := FireFlyTransactionRequest{
 			ApplyRules:           true,
-			ErrorIfDuplicateHash: true,
+			ErrorIfDuplicateHash: !allowDuplicates,
 			Transactions:         []FireFlyTransaction{ft},
 		}
 

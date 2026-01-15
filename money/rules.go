@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-// TODO: explore having array of regexes map to a category instead one big regex
-//var bills = []string{
-//	".*verizon.*",
-//}
-
 var billsRegex = regexp.MustCompile("(verizon|cloudflare|progressive|bank of america|head over heels|clubpilate|pets best ins|youtubepremium|netflix|pseg|bsi financial|cko|octopus music school)")
 var incomeRegex = regexp.MustCompile("(payroll ach from spotify|ach deposit|interest paid|cashback)")
 var groceriesRegex = regexp.MustCompile("(walmart|bjs|walgreens|target|wal-mart)")
