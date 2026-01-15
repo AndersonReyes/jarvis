@@ -1,8 +1,0 @@
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts
-money.firefly3: skipping 'transfer from' transaction because firefly will handle the transfer records in both accounts

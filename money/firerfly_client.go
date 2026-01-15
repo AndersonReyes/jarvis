@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 const fireflyUrl = "http://192.168.1.212:8082/api"
@@ -71,27 +72,20 @@ func (c fireflyClient) AddTransaction(r FireFlyTransactionRequest) error {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 
-	// var isDup = false
-	// if resp.StatusCode == 422 || strings.Contains(string(body), "duplicate") {
-	// 	isDup = true
-	// }
 	var buf bytes.Buffer
 	err = json.Indent(&buf, body, "", "  ")
 
-	if resp.StatusCode != 200 || err != nil {
-		log.Printf("failed requesa: %+v\n", r)
+	isDup := (resp.StatusCode == 422) && strings.Contains(string(body), "Duplicate of")
+	if (isDup && r.ErrorIfDuplicateHash) || resp.StatusCode != 200 || err != nil {
+		log.Printf("failed request: %+v\n", r)
 		log.Printf("Error creating transaction with response Body:[%d] %s. Error: %s\n", resp.StatusCode, &buf, err)
 		return errors.New("AddTransaction failed")
 	}
 
-	// log.Printf("API Response [%d]:\n%s\n", resp.StatusCode, &buf)
-	// for _, t := range r.Transactions {
-	// 	if isDup && r.ErrorIfDuplicateHash {
-	// 		log.Printf("transaction exists. Skipping: %s\n", t)
-	// 	} else {
-	// 		log.Printf("created transaction: %s\n", t)
-	// 	}
-	// }
+	log.Printf("API Response [%d]:\n%s\n", resp.StatusCode, &buf)
+	for _, t := range r.Transactions {
+		log.Printf("created transaction: %s\n", t)
+	}
 
 	return nil
 }
