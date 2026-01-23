@@ -33,5 +33,6 @@ go.work.sum
 
 
 *.csv
+*.json
 # binary
 jarvis

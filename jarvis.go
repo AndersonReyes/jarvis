@@ -36,7 +36,10 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(money.MoneyCmd)
-	rootCmd.AddCommand(money.FireflyCmd)
+	money.MoneyCmd.AddCommand(
+		money.FireflyCmd,
+		money.ReportCmd,
+	)
 }
 
 func main() {
