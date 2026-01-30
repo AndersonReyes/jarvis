@@ -33,7 +33,6 @@ type JsonReport struct {
 	DateEndExclusive time.Time          `json:"date_end_exclusive"`
 	Categories       map[Category]stats `json:"categories"`
 	GlobalStats      stats              `json:"global_stats"`
-	Transactions     []Transaction      `json:"transactions"`
 }
 
 func generateReport(cmd *cobra.Command, args []string) {
@@ -55,7 +54,6 @@ func generateReport(cmd *cobra.Command, args []string) {
 	// skip reader
 	reader.Read()
 
-	var transactions []Transaction
 	categoryStats := make(map[Category]stats)
 	var globalStats stats
 	maxDate := time.UnixMilli(0)
@@ -78,10 +76,13 @@ func generateReport(cmd *cobra.Command, args []string) {
 		}
 
 		entry.Net = entry.Net.Add(t.Amount)
+		globalStats.Net = globalStats.Net.Add(t.Amount)
 		if t.Amount.GreaterThan(zero) {
 			entry.In = entry.In.Add(t.Amount)
+			globalStats.In = globalStats.In.Add(t.Amount)
 		} else {
 			entry.Out = entry.Out.Add(t.Amount.Abs())
+			globalStats.Out = globalStats.Out.Add(t.Amount)
 		}
 
 		// set the budget if we have one set
@@ -105,7 +106,6 @@ func generateReport(cmd *cobra.Command, args []string) {
 			maxDate = date
 		}
 
-		transactions = append(transactions, t)
 	}
 
 	reportFile, err := os.OpenFile(reportName+".json", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -117,7 +117,6 @@ func generateReport(cmd *cobra.Command, args []string) {
 	report := JsonReport{
 		DateStart:        minDate,
 		DateEndExclusive: maxDate.AddDate(0, 0, 1),
-		Transactions:     transactions,
 		Categories:       categoryStats,
 		GlobalStats:      globalStats,
 	}
